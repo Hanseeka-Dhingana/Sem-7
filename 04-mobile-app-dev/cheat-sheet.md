@@ -1,0 +1,6 @@
+- MAD: Compare and Contrast(Similarity, and dissimilarity | pros and cons) different layouts
+- Which layout is preferred: depends on tasks
+- Android architecture: layered architecture
+- MCQS
+- Submit button: check for the null exception | Intents theory: examples, pros, cons, working rule
+- UI Screen design on board
