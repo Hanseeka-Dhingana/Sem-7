@@ -1,12 +1,8 @@
 ## Android Basics
 
-
-
 **Huawei vs Google**
 
-
 **Smart Phone**
-
 
 To Remind: Dalvik VM
 
@@ -163,3 +159,14 @@ You can change the name of an activity <br>
 
 
 
+
+
+### Sep 26 Mad
+Composable function, preview function, up to 9 Lazy list
+Columns and Row should be inside Composable
+https://www.geeksforgeeks.org/android/basics-of-jetpack-compose-in-android/
+https://www.geeksforgeeks.org/android/text-in-android-using-jetpack-compose/ 
+	MainActivity.kt
+https://www.geeksforgeeks.org/android/button-in-android-using-jetpack-compose/
+
+Creation of Jetpack project
