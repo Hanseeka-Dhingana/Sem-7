@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphical Sequences Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            border-radius: 20px 20px 0 0;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .sequence-box {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .sequence-input {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px;
+            letter-spacing: 2px;
+        }
+        
+        .verification-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 30px;
+        }
+        
+        .method-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .method-tab {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 10px 10px 0 0;
+            margin-right: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .method-tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .method-content {
+            display: none;
+        }
+        
+        .method-content.active {
+            display: block;
+        }
+        
+        .step {
+            margin: 25px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .step h3 {
+            color: #667eea;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 14px;
+        }
+        
+        .sequence-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            background: #e3f2fd;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 10px 0;
+            border: 2px solid #667eea;
+        }
+        
+        .result-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .result-graphical {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+        
+        .result-not-graphical {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        
+        .calculation-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .calculation-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .calculation-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .calculation-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .havel-hakimi-step {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .havel-hakimi-step h4 {
+            color: #667eea;
+            margin: 0 0 10px 0;
+        }
+        
+        .crossed-out {
+            text-decoration: line-through;
+            color: #999;
+        }
+        
+        .highlighted {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .formula-box {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .formula {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 10px 0;
+            font-family: 'Times New Roman', serif;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .sequence-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border: 3px solid #e0e0e0;
+        }
+        
+        .sequence-card h3 {
+            text-align: center;
+            color: #667eea;
+            margin-top: 0;
+        }
+        
+        .interactive-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px;
+        }
+        
+        .interactive-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .definition-box {
+            background: #f8f9fa;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            border-radius: 0 10px 10px 0;
+            margin: 25px 0;
+        }
+        
+        .definition-box h3 {
+            color: #28a745;
+            margin-top: 0;
+        }
+        
+        .error-message {
+            background: #ffe6e6;
+            color: #d32f2f;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #d32f2f;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .method-tabs {
+                flex-direction: column;
+            }
+            
+            .method-tab {
+                margin-bottom: 5px;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Graphical Sequences Verification</h1>
+            <p>Checking if Degree Sequences Can Form Simple Graphs</p>
+        </div>
+        
+        <div class="content">
+            <div class="sequence-box">
+                <h2>Given Sequences</h2>
+                <div class="sequence-input">Sequence 1: (7, 6, 5, 4, 3, 3, 2)</div>
+                <div class="sequence-input">Sequence 2: (6, 6, 5, 4, 3, 3, 1)</div>
+            </div>
+            
+            <div class="definition-box">
+                <h3>🔹 Graphical Sequence</h3>
+                <p>A sequence of non-negative integers is <strong>graphical</strong> if there exists a simple graph with vertices having exactly those degrees. We'll verify using two methods:</p>
+                <ul>
+                    <li><strong>Erdős–Gallai Theorem:</strong> Provides necessary and sufficient conditions</li>
+                    <li><strong>Havel-Hakimi Algorithm:</strong> Constructive method that reduces the problem step by step</li>
+                </ul>
+            </div>
+            
+            <div class="comparison-grid">
+                <!-- Sequence 1 -->
+                <div class="sequence-card">
+                    <h3>Sequence 1: (7, 6, 5, 4, 3, 3, 2)</h3>
+                    
+                    <div class="verification-section">
+                        <div class="method-tabs">
+                            <button class="method-tab active" onclick="showMethod('erdos1', this)">Erdős–Gallai</button>
+                            <button class="method-tab" onclick="showMethod('havel1', this)">Havel-Hakimi</button>
+                        </div>
+                        
+                        <div id="erdos1" class="method-content active">
+                            <div class="step">
+                                <h3><span class="step-number">1</span>Basic Checks</h3>
+                                <p><strong>Sum of degrees:</strong> 7 + 6 + 5 + 4 + 3 + 3 + 2 = 30</p>
+                                <p><strong>Is sum even?</strong> Yes ✓ (necessary condition for any graph)</p>
+                                <p><strong>Number of vertices:</strong> n = 7</p>
+                                <p><strong>Maximum possible degree:</strong> n - 1 = 6</p>
+                                <div class="error-message">
+                                    ❌ <strong>Problem:</strong> We have a vertex of degree 7, but maximum possible degree is 6!
+                                </div>
+                            </div>
+                            
+                            <div class="result-box result-not-graphical">
+                                ❌ SEQUENCE 1 IS NOT GRAPHICAL
+                                <br><small>Fails basic degree bound check</small>
+                            </div>
+                        </div>
+                        
+                        <div id="havel1" class="method-content">
+                            <div class="step">
+                                <h3><span class="step-number">1</span>Initial Check</h3>
+                                <div class="sequence-display">(7, 6, 5, 4, 3, 3, 2)</div>
+                                <p>We immediately see that vertex degree 7 > n - 1 = 6, which is impossible in a simple graph with 7 vertices.</p>
+                                <div class="error-message">
+                                    ❌ <strong>Termination:</strong> Cannot connect a vertex to 7 others when there are only 6 other vertices!
+                                </div>
+                            </div>
+                            
+                            <div class="result-box result-not-graphical">
+                                ❌ SEQUENCE 1 IS NOT GRAPHICAL
+                                <br><small>Degree exceeds vertex limit</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sequence 2 -->
+                <div class="sequence-card">
+                    <h3>Sequence 2: (6, 6, 5, 4, 3, 3, 1)</h3>
+                    
+                    <div class="verification-section">
+                        <div class="method-tabs">
+                            <button class="method-tab active" onclick="showMethod('erdos2', this)">Erdős–Gallai</button>
+                            <button class="method-tab" onclick="showMethod('havel2', this)">Havel-Hakimi</button>
+                        </div>
+                        
+                        <div id="erdos2" class="method-content active">
+                            <div class="step">
+                                <h3><span class="step-number">1</span>Basic Checks</h3>
+                                <p><strong>Sorted sequence:</strong> (6, 6, 5, 4, 3, 3, 1) ✓ Already in non-increasing order</p>
+                                <p><strong>Sum of degrees:</strong> 6 + 6 + 5 + 4 + 3 + 3 + 1 = 28</p>
+                                <p><strong>Is sum even?</strong> Yes ✓</p>
+                                <p><strong>Maximum degree ≤ n-1?</strong> 6 ≤ 6 ✓</p>
+                            </div>
+                            
+                            <div class="step">
+                                <h3><span class="step-number">2</span>Erdős–Gallai Inequality</h3>
+                                <div class="formula-box">
+                                    <div class="formula">∑(i=1 to k) d_i ≤ k(k-1) + ∑(i=k+1 to n) min(d_i, k)</div>
+                                    <p>Must hold for all k = 1, 2, ..., n</p>
+                                </div>
+                                
+                                <table class="calculation-table">
+                                    <tr>
+                                        <th>k</th>
+                                        <th>Left Side: ∑d_i</th>
+                                        <th>k(k-1)</th>
+                                        <th>∑min(d_i, k)</th>
+                                        <th>Right Side</th>
+                                        <th>Check</th>
+                                    </tr>
+                                    <tr>
+                                        <td>1</td>
+                                        <td>6</td>
+                                        <td>0</td>
+                                        <td>6+5+4+3+3+1=22</td>
+                                        <td>22</td>
+                                        <td>6 ≤ 22 ✓</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2</td>
+                                        <td>12</td>
+                                        <td>2</td>
+                                        <td>2+2+2+2+1=9</td>
+                                        <td>11</td>
+                                        <td>12 ≤ 11 ❌</td>
+                                    </tr>
+                                </table>
+                                
+                                <div class="error-message">
+                                    ❌ <strong>Fails at k = 2:</strong> 12 > 11
+                                </div>
+                            </div>
+                            
+                            <div class="result-box result-not-graphical">
+                                ❌ SEQUENCE 2 IS NOT GRAPHICAL
+                                <br><small>Fails Erdős–Gallai inequality at k = 2</small>
+                            </div>
+                        </div>
+                        
+                        <div id="havel2" class="method-content">
+                            <div class="step">
+                                <h3><span class="step-number">1</span>Step 1</h3>
+                                <div class="sequence-display">(6, 6, 5, 4, 3, 3, 1)</div>
+                                <p>Remove the first element (6) and subtract 1 from the next 6 largest elements:</p>
+                                <div class="sequence-display">(<span class="crossed-out">6</span>, 6-1, 5-1, 4-1, 3-1, 3-1, 1-1) = (5, 4, 3, 2, 2, 0)</div>
+                            </div>
+                            
+                            <div class="step">
+                                <h3><span class="step-number">2</span>Step 2</h3>
+                                <div class="sequence-display">(5, 4, 3, 2, 2, 0)</div>
+                                <p>Remove the first element (5) and subtract 1 from the next 5 largest elements:</p>
+                                <div class="sequence-display">(<span class="crossed-out">5</span>, 4-1, 3-1, 2-1, 2-1, 0-1) = (3, 2, 1, 1, -1)</div>
+                                <div class="error-message">
+                                    ❌ <strong>Negative degree!</strong> We get -1, which is impossible.
+                                </div>
+                            </div>
+                            
+                            <div class="result-box result-not-graphical">
+                                ❌ SEQUENCE 2 IS NOT GRAPHICAL
+                                <br><small>Havel-Hakimi produces negative degree</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Summary -->
+            <div class="verification-section">
+                <h2 style="color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px;">Summary</h2>
+                
+                <div class="step">
+                    <h3><span class="step-number">📊</span>Results</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="result-box result-not-graphical">
+                            <strong>Sequence (7,6,5,4,3,3,2)</strong><br>
+                            ❌ NOT GRAPHICAL<br>
+                            <small>Degree 7 > n-1 = 6</small>
+                        </div>
+                        <div class="result-box result-not-graphical">
+                            <strong>Sequence (6,6,5,4,3,3,1)</strong><br>
+                            ❌ NOT GRAPHICAL<br>
+                            <small>Fails Erdős–Gallai & Havel-Hakimi</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <h3><span class="step-number">🔍</span>Why These Sequences Fail</h3>
+                    <ul>
+                        <li><strong>Sequence 1:</strong> Impossible to have degree 7 in a simple graph with only 7 vertices (max degree = 6)</li>
+                        <li><strong>Sequence 2:</strong> The high degrees of the first two vertices (both 6) require too many connections, leaving insufficient degree capacity for the remaining vertices</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="interactive-btn" onclick="showGraphicalExample()">See a Graphical Example</button>
+                <button class="interactive-btn" onclick="explainTheorems()">Learn More About the Theorems</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showMethod(methodId, tabElement) {
+            // Hide all method contents in the same parent
+            const parent = tabElement.closest('.sequence-card');
+            const contents = parent.querySelectorAll('.method-content');
+            const tabs = parent.querySelectorAll('.method-tab');
+            
+            contents.forEach(content => content.classList.remove('active'));
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected method
+            document.getElementById(methodId).classList.add('active');
+            tabElement.classList.add('active');
+        }
+        
+        function showGraphicalExample() {
+            alert("Example of a graphical sequence: (3,3,2,2,2,2)\n\n" +
+                  "This can form a graph because:\n" +
+                  "✓ Sum = 14 (even)\n" +
+                  "✓ Max degree ≤ n-1\n" +
+                  "✓ Passes Erdős–Gallai inequality\n" +
+                  "✓ Havel-Hakimi reaches (0,0,0,0,0,0)");
+        }
+        
+        function explainTheorems() {
+            alert("Key Theorems for Graphical Sequences:\n\n" +
+                  "🔹 Erdős–Gallai (1960): Provides necessary and sufficient conditions using inequalities\n\n" +
+                  "🔹 Havel-Hakimi Algorithm: Constructive method that either builds a graph or finds why it's impossible\n\n" +
+                  "🔹 Handshaking Lemma: Sum of degrees must be even (each edge contributes 2 to the sum)");
+        }
+        
+        // Add hover effects
+        document.addEventListener('DOMContentLoaded', function() {
+            const steps = document.querySelectorAll('.step');
+            steps.forEach(step => {
+                step.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateX(5px)';
+                    this.style.transition = 'transform 0.2s';
+                });
+                step.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateX(0)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

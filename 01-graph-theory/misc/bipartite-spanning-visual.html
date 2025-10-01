@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Bipartite Spanning Subgraph Visualizer — ≥ |E|/2</title>
+<style>
+  body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:#0b1220;color:#e6eef6}
+  header{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center}
+  h1{font-size:18px;margin:0}
+  main{display:grid;grid-template-columns:1fr 320px;gap:14px;padding:18px;align-items:start}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px}
+  svg{background:transparent;border-radius:8px}
+  .controls{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  button{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;cursor:pointer}
+  button.primary{background:#60a5fa;border:none;color:#04263b}
+  .small{font-size:13px;color:#9aa4b2}
+  footer{padding:12px 18px;color:#9aa4b2}
+  .legend{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .dot{width:14px;height:14px;border-radius:7px;display:inline-block;border:2px solid rgba(0,0,0,0.2)}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>Bipartite Spanning Subgraph Visualizer</h1><div style="margin-left:auto" class="small">Shows a bipartition with ≥ |E|/2 crossing edges</div></header>
+<main>
+  <section class="card">
+    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between">
+      <div><strong>Graph canvas</strong><div class="small">Click an edge to toggle it. Click a vertex to move it manually.</div></div>
+      <div class="small">Edges: <span id="edgeCount">0</span> — Crossing: <span id="crossCount">0</span></div>
+    </div>
+    <svg id="canvas" width="820" height="520"></svg>
+
+    <div class="legend small">
+      <div><span class="dot" style="background:#60a5fa"></span> vertex</div>
+      <div><span class="dot" style="background:#7ef3a6"></span> part A</div>
+      <div><span class="dot" style="background:#ffd36b"></span> part B</div>
+      <div style="margin-left:12px"><span class="dot" style="background:#ff6b6b;border-width:3px"></span> crossing edge</div>
+    </div>
+  </section>
+
+  <aside class="card">
+    <strong>Controls</strong>
+    <div class="controls">
+      <button id="randomEdges">Random Graph</button>
+      <button id="clearEdges">Clear Edges</button>
+      <button id="randomPartition" class="primary">Random Partition</button>
+      <button id="greedyStep">Greedy Move (one step)</button>
+      <button id="greedyRun">Run Greedy Until Stable</button>
+      <button id="resetPartition">Reset Partition</button>
+      <button id="export" title="Save this graph as JSON">Download graph (.json)</button>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="small"><strong>How it works</strong></div>
+      <div class="small">We maintain a partition A/B of vertices. Crossing edges (between A and B) form a bipartite subgraph. Greedy move: if a vertex has more neighbors on its own side than across, move it — this increases crossing edges. At termination each vertex has ≥ half its incident edges crossing, implying crossing edges ≥ |E|/2.</div>
+    </div>
+    <div style="margin-top:10px" class="small"><strong>Status</strong><div id="status">Ready.</div></div>
+  </aside>
+</main>
+<footer>Tip: open the downloaded file in a browser to run locally.</footer>
+
+<script>
+// Basic graph model: nodes and edges
+let nodes = [];
+let edges = []; // objects {u,v}
+// partition map: 0 = A, 1 = B
+let part = {};
+
+const svg = document.getElementById('canvas');
+const W = 820, H = 520;
+
+// create sample nodes in positions
+function initNodes(n=8){
+  nodes = [];
+  edges = [];
+  part = {};
+  // place nodes in a circle
+  const cx = W/2, cy = H/2, r = Math.min(W,H)/2 - 80;
+  for(let i=0;i<n;i++){
+    const ang = 2*Math.PI*i/n;
+    const x = cx + r*Math.cos(ang);
+    const y = cy + r*Math.sin(ang);
+    nodes.push({id:i, x, y});
+    part[i] = Math.random() < 0.5 ? 0 : 1;
+  }
+  update();
+}
+
+// helpers
+function ek(u,v){ return u < v ? u+'-'+v : v+'-'+u; }
+function hasEdge(u,v){ return edges.some(e=> (e.u===u && e.v===v) || (e.u===v && e.v===u)); }
+function addEdge(u,v){ if(u===v) return; if(!hasEdge(u,v)) edges.push({u,v}); }
+function removeEdge(u,v){ edges = edges.filter(e=> !( (e.u===u && e.v===v) || (e.u===v && e.v===u) )); }
+
+// draw
+function update(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  // draw edges: base grey, crossing highlighted red
+  edges.forEach(e=>{
+    const a = nodes[e.u], b = nodes[e.v];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    const crossing = part[e.u] !== part[e.v];
+    line.setAttribute('stroke', crossing ? '#ff6b6b' : 'rgba(255,255,255,0.08)');
+    line.setAttribute('stroke-width', crossing ? 5 : 2);
+    line.setAttribute('data-edge', ek(e.u,e.v));
+    line.style.cursor = 'pointer';
+    line.addEventListener('click', ()=>{ // toggle edge on click
+      if(hasEdge(e.u,e.v)) removeEdge(e.u,e.v); else addEdge(e.u,e.v);
+      update();
+    });
+    svg.appendChild(line);
+  });
+  // draw nodes on top
+  nodes.forEach(n=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform', `translate(${n.x},${n.y})`);
+    // circle
+    const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circ.setAttribute('r', 18);
+    circ.setAttribute('fill', part[n.id]===0 ? '#7ef3a6' : '#ffd36b');
+    circ.setAttribute('stroke', 'rgba(255,255,255,0.08)');
+    circ.style.cursor = 'move';
+    // label
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',0); txt.setAttribute('y',5); txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','12'); txt.setAttribute('fill','#04263b');
+    txt.textContent = n.id;
+    // attach interactions: click to flip partition, drag to move
+    circ.addEventListener('click', (ev)=>{ ev.stopPropagation(); part[n.id] = part[n.id]===0?1:0; updateCounts(); update(); });
+    let dragging = false;
+    circ.addEventListener('mousedown', (ev)=>{ dragging=true; ev.preventDefault(); });
+    svg.addEventListener('mousemove', (ev)=>{ if(!dragging) return; const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; const loc = pt.matrixTransform(svg.getScreenCTM().inverse()); n.x = loc.x; n.y = loc.y; update(); });
+    window.addEventListener('mouseup', ()=>{ dragging=false; });
+    g.appendChild(circ); g.appendChild(txt);
+    svg.appendChild(g);
+  });
+  updateCounts();
+}
+
+// counts
+function updateCounts(){
+  document.getElementById('edgeCount').textContent = edges.length;
+  const cross = edges.filter(e=> part[e.u] !== part[e.v]).length;
+  document.getElementById('crossCount').textContent = cross;
+  // status: compare crossing edges to |E|/2
+  const status = document.getElementById('status');
+  const half = edges.length/2;
+  if(cross >= half) status.innerHTML = `<span style="color:#7ef3a6">Crossing edges = ${cross} ≥ |E|/2 = ${half.toFixed(1)}</span>`;
+  else status.innerHTML = `<span style="color:#ffd36b">Crossing edges = ${cross} &lt; |E|/2 = ${half.toFixed(1)}</span>`;
+}
+
+// randomize edges
+function randomEdges(prob=0.3){
+  edges = [];
+  for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) if(Math.random() < prob) addEdge(i,j);
+  update();
+}
+
+// greedy move: one step (find a vertex with more neighbors on same side than across)
+function greedyStep(){
+  // compute neighbor counts
+  const degSame = {}; const degCross = {};
+  nodes.forEach(n=>{ degSame[n.id]=0; degCross[n.id]=0; });
+  edges.forEach(e=>{
+    if(part[e.u] === part[e.v]){ degSame[e.u]++; degSame[e.v]++; }
+    else { degCross[e.u]++; degCross[e.v]++; }
+  });
+  // find a vertex with degSame > degCross
+  const candidate = nodes.find(n => degSame[n.id] > degCross[n.id]);
+  if(candidate){
+    part[candidate.id] = part[candidate.id]===0?1:0;
+    update();
+    document.getElementById('status').textContent = `Moved vertex ${candidate.id} to other part.`;
+  } else {
+    document.getElementById('status').textContent = 'No vertex improves — partition is stable.';
+  }
+}
+
+// greedy run until stable (limit iterations)
+function greedyRun(){
+  let iter=0;
+  while(iter < 100){
+    iter++;
+    // compute neighbor counts
+    const degSame = {}; const degCross = {};
+    nodes.forEach(n=>{ degSame[n.id]=0; degCross[n.id]=0; });
+    edges.forEach(e=>{
+      if(part[e.u] === part[e.v]){ degSame[e.u]++; degSame[e.v]++; }
+      else { degCross[e.u]++; degCross[e.v]++; }
+    });
+    const candidate = nodes.find(n => degSame[n.id] > degCross[n.id]);
+    if(candidate){ part[candidate.id] = part[candidate.id]===0?1:0; update(); }
+    else { break; }
+  }
+  document.getElementById('status').textContent = 'Greedy reached stable partition.';
+}
+
+// export graph JSON
+function exportJSON(){
+  const data = {nodes, edges, part};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'graph.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// handlers
+document.getElementById('randomEdges').addEventListener('click', ()=>{ randomEdges(0.28); });
+document.getElementById('clearEdges').addEventListener('click', ()=>{ edges = []; update(); });
+document.getElementById('randomPartition').addEventListener('click', ()=>{ nodes.forEach(n=> part[n.id] = Math.random() < 0.5 ? 0 : 1); update(); });
+document.getElementById('greedyStep').addEventListener('click', ()=>{ greedyStep(); });
+document.getElementById('greedyRun').addEventListener('click', ()=>{ greedyRun(); });
+document.getElementById('resetPartition').addEventListener('click', ()=>{ nodes.forEach(n=> part[n.id]=0); update(); });
+document.getElementById('export').addEventListener('click', ()=>{ exportJSON(); });
+
+// initialize
+initNodes(8);
+randomEdges(0.28);
+
+</script>
+</body>
+</html>

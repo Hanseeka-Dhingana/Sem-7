@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Isomorphic Image of a Walk</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #111827; color: #f3f4f6; padding: 20px; }
+    h2 { text-align: center; }
+    .graph { display: inline-block; margin: 10px; }
+    svg { background: #1f2937; border-radius: 8px; }
+    circle { fill: #60a5fa; stroke: #2563eb; stroke-width: 2px; }
+    text { fill: white; font-size: 14px; }
+    line { stroke: #9ca3af; stroke-width: 2px; }
+    .highlight { stroke: #f87171; stroke-width: 4px; }
+    .controls { margin-top: 15px; text-align: center; }
+    button { background: #2563eb; color: white; border: none; padding: 6px 12px; margin: 0 5px; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+
+<h2>Isomorphic Image of a Walk</h2>
+
+<div style="display: flex; justify-content: center; gap: 40px;">
+  <div class="graph">
+    <h3>Graph G (Original)</h3>
+    <svg id="graphG" width="300" height="250"></svg>
+  </div>
+  <div class="graph">
+    <h3>Graph H (Isomorphic)</h3>
+    <svg id="graphH" width="300" height="250"></svg>
+  </div>
+</div>
+
+<div class="controls">
+  <button onclick="showWalk()">Show Walk</button>
+  <button onclick="stepWalk()">Step Through</button>
+  <button onclick="resetWalk()">Reset</button>
+</div>
+
+<script>
+  // Graph data
+  const nodesG = [
+    {id: "v0", x: 100, y: 50},
+    {id: "v1", x: 200, y: 100},
+    {id: "v2", x: 150, y: 180},
+    {id: "v3", x: 60, y: 130}
+  ];
+
+  const edgesG = [
+    ["v0","v1"], ["v1","v2"], ["v2","v3"], ["v3","v0"], ["v1","v3"]
+  ];
+
+  // Isomorphic mapping f: v0→u0, v1→u1, v2→u2, v3→u3
+  const nodesH = [
+    {id: "u0", x: 200, y: 50},
+    {id: "u1", x: 100, y: 100},
+    {id: "u2", x: 60, y: 180},
+    {id: "u3", x: 220, y: 160}
+  ];
+
+  const edgesH = [
+    ["u0","u1"], ["u1","u2"], ["u2","u3"], ["u3","u0"], ["u1","u3"]
+  ];
+
+  const walkG = ["v0","v1","v2","v3"]; // walk in G
+  const walkH = ["u0","u1","u2","u3"]; // corresponding image in H
+
+  let stepIndex = 0;
+
+  function drawGraph(svgId, nodes, edges) {
+    const svg = d3.select(svgId);
+    // edges
+    svg.selectAll("line")
+      .data(edges)
+      .enter().append("line")
+      .attr("x1", d => nodes.find(n => n.id===d[0]).x)
+      .attr("y1", d => nodes.find(n => n.id===d[0]).y)
+      .attr("x2", d => nodes.find(n => n.id===d[1]).x)
+      .attr("y2", d => nodes.find(n => n.id===d[1]).y);
+    // nodes
+    svg.selectAll("circle")
+      .data(nodes)
+      .enter().append("circle")
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y)
+      .attr("r", 18);
+    svg.selectAll("text")
+      .data(nodes)
+      .enter().append("text")
+      .attr("x", d => d.x)
+      .attr("y", d => d.y+4)
+      .attr("text-anchor","middle")
+      .text(d => d.id);
+  }
+
+  drawGraph("#graphG", nodesG, edgesG);
+  drawGraph("#graphH", nodesH, edgesH);
+
+  function highlightEdge(svgId, nodes, u, v) {
+    d3.select(svgId).selectAll("line")
+      .filter(d => (d[0]===u && d[1]===v) || (d[0]===v && d[1]===u))
+      .classed("highlight", true);
+  }
+
+  function showWalk() {
+    resetWalk();
+    for(let i=0; i<walkG.length-1; i++){
+      highlightEdge("#graphG", nodesG, walkG[i], walkG[i+1]);
+      highlightEdge("#graphH", nodesH, walkH[i], walkH[i+1]);
+    }
+  }
+
+  function stepWalk() {
+    if(stepIndex < walkG.length-1){
+      highlightEdge("#graphG", nodesG, walkG[stepIndex], walkG[stepIndex+1]);
+      highlightEdge("#graphH", nodesH, walkH[stepIndex], walkH[stepIndex+1]);
+      stepIndex++;
+    }
+  }
+
+  function resetWalk() {
+    stepIndex = 0;
+    d3.selectAll("line").classed("highlight", false);
+  }
+</script>
+
+</body>
+</html>

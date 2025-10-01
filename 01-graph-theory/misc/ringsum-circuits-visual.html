@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ringsum of Two Collections of Circuits — Interactive Visual</title>
+<style>
+  body{font-family:Inter,Segoe UI,Roboto,Arial;margin:0;background:#071022;color:#e6eef6}
+  header{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center}
+  h1{font-size:18px;margin:0}
+  main{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px}
+  svg{background:transparent}
+  .controls{display:flex;gap:8px;margin-top:10px}
+  button{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;cursor:pointer}
+  button.primary{background:#60a5fa;border:none;color:#04263b}
+  .note{color:#9aa4b2;margin-top:8px}
+  footer{padding:12px 18px;color:#9aa4b2}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>Ringsum of Two Collections of Circuits — Interactive Visual</h1><div style="margin-left:auto;color:#9aa4b2">Toggle edges / Randomize</div></header>
+<main>
+  <section class="card">
+    <strong>Collection A (set of circuits)</strong>
+    <svg id="svgA" width="360" height="300" viewBox="0 0 360 300" aria-label="Collection A"></svg>
+    <div class="controls">
+      <button id="randA">Randomize A</button>
+      <button id="clearA">Clear A</button>
+    </div>
+    <div class="note">Edges in <span style="color:#7ef3a6">green</span> belong to Collection A (circuits).</div>
+  </section>
+
+  <section class="card">
+    <strong>Collection B (set of circuits)</strong>
+    <svg id="svgB" width="360" height="300" viewBox="0 0 360 300" aria-label="Collection B"></svg>
+    <div class="controls">
+      <button id="randB">Randomize B</button>
+      <button id="clearB">Clear B</button>
+    </div>
+    <div class="note">Edges in <span style="color:#ffd36b">orange</span> belong to Collection B (circuits).</div>
+  </section>
+
+  <section class="card" style="grid-column:span 2;">
+    <strong>Ringsum A ⊕ B (symmetric difference)</strong>
+    <div style="display:flex;gap:12px;margin-top:10px;align-items:flex-start">
+      <svg id="svgS" width="760" height="340" viewBox="0 0 760 340" aria-label="Symmetric Difference"></svg>
+      <div style="flex:1">
+        <div id="status" class="note">Symmetric difference highlights edges in <span style="color:#ff6b6b">red</span>. If it's a union of cycles, each vertex in the result has even degree (0 or 2).</div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="makeDisjoint" class="primary">Make A,B edge-disjoint</button>
+          <button id="randomBoth">Randomize Both</button>
+          <button id="explain">Check Result</button>
+        </div>
+        <div id="explainBox" class="note"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>Open this file locally for full interactivity.</footer>
+
+<script>
+// Nodes positioned to form several cycles visually
+const nodes = [
+  {x:80,y:70,label:1},{x:160,y:40,label:2},{x:240,y:70,label:3},{x:320,y:40,label:4},
+  {x:400,y:70,label:5},{x:480,y:40,label:6},{x:560,y:70,label:7},{x:640,y:40,label:8},
+  {x:120,y:190,label:9},{x:240,y:190,label:10},{x:360,y:190,label:11},{x:480,y:190,label:12}
+];
+// define a set of candidate edges that form obvious cycles
+const allEdges = [
+  [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7], // top zigzag chain
+  [0,2],[2,4],[4,6], // chords to make cycles
+  [8,9],[9,10],[10,11],[11,8], // bottom square cycle
+  [1,9],[2,10],[3,11] // vertical connectors
+];
+
+// helper key
+function ek(e){ return e[0]+'-'+e[1]; }
+
+// edge sets
+let setA = new Set(); // edges in collection A
+let setB = new Set(); // edges in collection B
+
+// initial sample: make A and B each collections of cycles (edge-disjoint)
+function seedSample(){
+  setA = new Set([ek(allEdges[0]),ek(allEdges[1]),ek(allEdges[2]),ek(allEdges[8]),ek(allEdges[9]),ek(allEdges[10])]);
+  setB = new Set([ek(allEdges[3]),ek(allEdges[4]),ek(allEdges[5]),ek(allEdges[11]),ek(allEdges[12])]);
+}
+
+// draw helpers
+function draw(svgId, edgeSet, colorStroke){
+  const svg = document.getElementById(svgId);
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  // edges
+  allEdges.forEach(e=>{
+    const a = nodes[e[0]], b = nodes[e[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    const key = ek(e);
+    const present = edgeSet.has(key);
+    line.setAttribute('stroke', present ? colorStroke : 'rgba(255,255,255,0.06)');
+    line.setAttribute('stroke-width', present ? 5 : 2);
+    line.setAttribute('data-edge', key);
+    line.style.cursor = 'pointer';
+    svg.appendChild(line);
+  });
+  // nodes
+  nodes.forEach(n=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',n.x); c.setAttribute('cy',n.y); c.setAttribute('r',12);
+    c.setAttribute('fill','rgba(255,255,255,0.03)'); c.setAttribute('stroke','rgba(255,255,255,0.08)');
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',n.x); t.setAttribute('y',n.y+5); t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','11'); t.setAttribute('fill','#dff1ff'); t.textContent = n.label;
+    g.appendChild(c); g.appendChild(t);
+    svg.appendChild(g);
+  });
+}
+
+// draw symmetric difference
+function drawSym(){
+  const svg = document.getElementById('svgS');
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  // compute sym diff edges
+  const sym = [];
+  allEdges.forEach(e=>{
+    const k = ek(e);
+    const inA = setA.has(k); const inB = setB.has(k);
+    if(inA !== inB) sym.push({e,k,inA,inB});
+  });
+  // draw base edges faint
+  allEdges.forEach(e=>{
+    const a = nodes[e[0]], b = nodes[e[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','rgba(255,255,255,0.04)'); line.setAttribute('stroke-width',2);
+    svg.appendChild(line);
+  });
+  // overlay A edges (green faint)
+  setA.forEach(k=>{
+    const parts = k.split('-').map(Number);
+    const a = nodes[parts[0]], b = nodes[parts[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','#7ef3a6'); line.setAttribute('stroke-width',5); line.setAttribute('opacity',0.25);
+    svg.appendChild(line);
+  });
+  // overlay B edges (orange faint)
+  setB.forEach(k=>{
+    const parts = k.split('-').map(Number);
+    const a = nodes[parts[0]], b = nodes[parts[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','#ffd36b'); line.setAttribute('stroke-width',5); line.setAttribute('opacity',0.25);
+    svg.appendChild(line);
+  });
+  // highlight symmetric difference edges in red
+  sym.forEach(s=>{
+    const parts = s.k.split('-').map(Number);
+    const a = nodes[parts[0]], b = nodes[parts[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','#ff6b6b'); line.setAttribute('stroke-width',6); line.setAttribute('stroke-linecap','round');
+    svg.appendChild(line);
+  });
+  // nodes
+  nodes.forEach(n=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',n.x); c.setAttribute('cy',n.y); c.setAttribute('r',12);
+    c.setAttribute('fill','rgba(255,255,255,0.03)'); c.setAttribute('stroke','rgba(255,255,255,0.08)');
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',n.x); t.setAttribute('y',n.y+5); t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','11'); t.setAttribute('fill','#dff1ff'); t.textContent = n.label;
+    g.appendChild(c); g.appendChild(t);
+    svg.appendChild(g);
+  });
+  // update status
+  const status = document.getElementById('status');
+  if(sym.length===0){
+    status.innerHTML = '<strong style="color:#7ef3a6">Symmetric difference empty → E(A)=E(B)</strong>';
+    document.getElementById('explainBox').innerHTML = '';
+  } else {
+    // check degrees in sym graph
+    const deg = Array(nodes.length).fill(0);
+    sym.forEach(s=>{ const p = s.k.split('-').map(Number); deg[p[0]]++; deg[p[1]]++; });
+    // collect vertices with odd degree
+    const odd = deg.map((d,i)=>d%2!==0 ? i+1 : -1).filter(x=>x!==-1);
+    let expl = 'Symmetric difference edges (red): ' + sym.map(s=>s.k).join(', ') + '<br/>';
+    if(odd.length===0){
+      expl += '<strong style="color:#7ef3a6">Every vertex has even degree (0 or 2) → union of cycles (circuits).</strong>';
+    } else {
+      expl += '<strong style="color:#ffd36b">Vertices with odd degree: ' + odd.join(', ') + ' (not a collection of circuits)</strong>';
+    }
+    document.getElementById('explainBox').innerHTML = expl;
+    status.innerHTML = 'Symmetric difference has '+sym.length+' edge(s).';
+  }
+}
+
+// initialize and handlers
+seedSample();
+draw('svgA', setA, '#7ef3a6');
+draw('svgB', setB, '#ffd36b');
+drawSym();
+
+// click toggle edges in A/B panels
+['svgA','svgB'].forEach(id=>{
+  const svg = document.getElementById(id);
+  svg.addEventListener('click', (ev)=>{
+    if(ev.target.tagName.toLowerCase() !== 'line') return;
+    const key = ev.target.getAttribute('data-edge');
+    if(!key) return;
+    if(id==='svgA'){
+      if(setA.has(key)) setA.delete(key); else setA.add(key);
+      draw('svgA', setA, '#7ef3a6');
+    } else {
+      if(setB.has(key)) setB.delete(key); else setB.add(key);
+      draw('svgB', setB, '#ffd36b');
+    }
+    drawSym();
+  });
+});
+
+// buttons
+document.getElementById('randA').addEventListener('click', ()=>{
+  setA = new Set(); allEdges.forEach(e=>{ if(Math.random()<0.5) setA.add(ek(e)); });
+  draw('svgA', setA, '#7ef3a6'); drawSym();
+});
+document.getElementById('randB').addEventListener('click', ()=>{
+  setB = new Set(); allEdges.forEach(e=>{ if(Math.random()<0.5) setB.add(ek(e)); });
+  draw('svgB', setB, '#ffd36b'); drawSym();
+});
+document.getElementById('clearA').addEventListener('click', ()=>{ setA = new Set(); draw('svgA', setA, '#7ef3a6'); drawSym(); });
+document.getElementById('clearB').addEventListener('click', ()=>{ setB = new Set(); draw('svgB', setB, '#ffd36b'); drawSym(); });
+document.getElementById('randomBoth').addEventListener('click', ()=>{ document.getElementById('randA').click(); document.getElementById('randB').click(); });
+document.getElementById('makeDisjoint').addEventListener('click', ()=>{
+  // ensure edge-disjoint: remove common edges from B
+  const common = [...setA].filter(k=>setB.has(k));
+  common.forEach(k=>setB.delete(k));
+  draw('svgB', setB, '#ffd36b'); drawSym();
+});
+document.getElementById('explain').addEventListener('click', ()=>{ drawSym(); });
+
+</script>
+</body>
+</html>

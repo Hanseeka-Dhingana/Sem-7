@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ringsum (Symmetric Difference) Visualizer — G \u2295 H</title>
+<style>
+  body{font-family:Inter,Segoe UI,Roboto,Arial;margin:0;background:#0b1220;color:#e6eef6}
+  header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:12px}
+  h1{font-size:18px;margin:0}
+  main{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:18px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px}
+  .panel{display:flex;gap:12px;align-items:flex-start}
+  svg{background:transparent}
+  .controls{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+  button{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;cursor:pointer}
+  .primary{background:#60a5fa;border:none;color:#04263b}
+  .note{color:#9aa4b2;font-size:13px;margin-top:8px}
+  .status{margin-top:10px;font-family:monospace;background:rgba(255,255,255,0.01);padding:10px;border-radius:8px}
+  footer{padding:12px 18px;color:#9aa4b2}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Ringsum Visualizer — when is G \u2295 H empty?</h1>
+    <div style="margin-left:auto;color:#9aa4b2">Interactive: toggle edges</div>
+  </header>
+  <main>
+    <section class="card">
+      <strong>Graph G</strong>
+      <div class="panel">
+        <svg id="svgG" width="320" height="260" viewBox="0 0 320 260" aria-label="Graph G"></svg>
+        <div class="controls">
+          <div>Click an edge to toggle it in G</div>
+          <button id="randG">Randomize G</button>
+          <button id="clearG">Clear G</button>
+        </div>
+      </div>
+      <div class="note">Edges shown in <span style="color:#7ef3a6">green</span> are present in G.</div>
+    </section>
+
+    <section class="card">
+      <strong>Graph H</strong>
+      <div class="panel">
+        <svg id="svgH" width="320" height="260" viewBox="0 0 320 260" aria-label="Graph H"></svg>
+        <div class="controls">
+          <div>Click an edge to toggle it in H</div>
+          <button id="randH">Randomize H</button>
+          <button id="clearH">Clear H</button>
+        </div>
+      </div>
+      <div class="note">Edges shown in <span style="color:#ffd36b">orange</span> are present in H.</div>
+    </section>
+
+    <section class="card" style="grid-column:span 2;">
+      <strong>Ringsum (G \u2295 H) — symmetric difference</strong>
+      <div style="display:flex;gap:12px;margin-top:10px;align-items:flex-start">
+        <svg id="svgS" width="380" height="260" viewBox="0 0 380 260" aria-label="Symmetric Difference"></svg>
+        <div style="flex:1">
+          <div class="status" id="status">Computing...</div>
+          <div class="note">Edges in <span style="color:#ff6b6b">red</span> belong to exactly one of G or H. If none are red, then G \u2295 H is empty, which happens iff E(G)=E(H).</div>
+          <div style="margin-top:10px;display:flex;gap:8px"><button id="makeEqual" class="primary">Make H = G</button><button id="randomBoth">Randomize both</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>Tip: open this file locally in a browser for full interactivity.</footer>
+
+<script>
+// Node positions (shared across G,H,S view)
+const nodes = [ {x:60,y:60,label:1}, {x:180,y:40,label:2}, {x:300,y:60,label:3}, {x:110,y:170,label:4}, {x:250,y:170,label:5} ];
+const allEdges = [];
+for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) allEdges.push([i,j]);
+// Edge sets stored as boolean maps
+let edgesG = new Set();
+let edgesH = new Set();
+
+function edgeKey(e){ return e[0]+"-"+e[1]; }
+
+function draw(svgId, edgeSet, colorFill, colorStroke){
+  const svg = document.getElementById(svgId);
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  // edges
+  const edgeLayer = document.createElementNS('http://www.w3.org/2000/svg','g');
+  allEdges.forEach((e,i)=>{
+    const a = nodes[e[0]], b = nodes[e[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y); line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke', edgeSet.has(edgeKey(e)) ? colorStroke : 'rgba(255,255,255,0.06)');
+    line.setAttribute('stroke-width', edgeSet.has(edgeKey(e)) ? 4 : 2);
+    line.setAttribute('data-edge', edgeKey(e));
+    line.style.cursor='pointer';
+    edgeLayer.appendChild(line);
+  });
+  svg.appendChild(edgeLayer);
+  // nodes
+  nodes.forEach((n,i)=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circ.setAttribute('cx',n.x); circ.setAttribute('cy',n.y); circ.setAttribute('r',18);
+    circ.setAttribute('fill','rgba(255,255,255,0.04)'); circ.setAttribute('stroke','rgba(255,255,255,0.12)');
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',n.x); txt.setAttribute('y',n.y+6); txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','12'); txt.setAttribute('fill','#dff1ff'); txt.textContent = n.label;
+    g.appendChild(circ); g.appendChild(txt);
+    svg.appendChild(g);
+  });
+}
+
+function drawSymmetric(){
+  const svg = document.getElementById('svgS');
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  // Determine symmetric difference
+  const sym = [];
+  allEdges.forEach(e=>{
+    const k = edgeKey(e);
+    const inG = edgesG.has(k);
+    const inH = edgesH.has(k);
+    if(inG !== inH) sym.push({e,k,inG,inH});
+  });
+  // draw edges: present in both -> light; present only in G -> green; only in H -> orange; sym edges -> red highlight
+  allEdges.forEach(e=>{
+    const a = nodes[e[0]], b = nodes[e[1]];
+    const k = edgeKey(e);
+    const inG = edgesG.has(k); const inH = edgesH.has(k);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y); line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke-width', 4);
+    if(inG && inH){ line.setAttribute('stroke','rgba(255,255,255,0.12)'); }
+    else if(inG && !inH){ line.setAttribute('stroke','#7ef3a6'); }
+    else if(!inG && inH){ line.setAttribute('stroke','#ffd36b'); }
+    else { line.setAttribute('stroke','rgba(255,255,255,0.02)'); line.setAttribute('stroke-width',2); }
+    svg.appendChild(line);
+  });
+  // draw symmetric diff overlay red thicker
+  sym.forEach(s=>{
+    const e = s.e; const a = nodes[e[0]], b = nodes[e[1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y); line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','#ff6b6b'); line.setAttribute('stroke-width',6); line.setAttribute('stroke-linecap','round');
+    svg.appendChild(line);
+  });
+  // nodes
+  nodes.forEach((n,i)=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circ.setAttribute('cx',n.x); circ.setAttribute('cy',n.y); circ.setAttribute('r',18);
+    circ.setAttribute('fill','rgba(255,255,255,0.04)'); circ.setAttribute('stroke','rgba(255,255,255,0.12)');
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',n.x); txt.setAttribute('y',n.y+6); txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','12'); txt.setAttribute('fill','#dff1ff'); txt.textContent = n.label;
+    g.appendChild(circ); g.appendChild(txt);
+    svg.appendChild(g);
+  });
+
+  // update status
+  const st = document.getElementById('status');
+  if(sym.length===0){ st.innerHTML = '<strong style="color:#7ef3a6">G \u2295 H is empty.</strong><br/>Therefore E(G) = E(H)'; }
+  else { st.innerHTML = `<strong style="color:#ff6b6b">G \u2295 H has ${sym.length} edge(s):</strong><br/>` + sym.map(s=>s.k).join(', '); }
+}
+
+function init(){
+  // initial sample: some edges in G and H
+  edgesG = new Set([edgeKey(allEdges[0]), edgeKey(allEdges[2]), edgeKey(allEdges[5])]);
+  edgesH = new Set([edgeKey(allEdges[2]), edgeKey(allEdges[4])]);
+  draw('svgG', edgesG, '#7ef3a6', '#7ef3a6');
+  draw('svgH', edgesH, '#ffd36b', '#ffd36b');
+  drawSymmetric();
+  // add click handlers to toggle edges in left/right SVGs
+  ['svgG','svgH'].forEach(id=>{
+    const svg = document.getElementById(id);
+    svg.addEventListener('click', (ev)=>{
+      if(ev.target.tagName.toLowerCase()!=='line') return;
+      const k = ev.target.getAttribute('data-edge');
+      if(!k) return;
+      if(id==='svgG'){
+        if(edgesG.has(k)) edgesG.delete(k); else edgesG.add(k);
+        draw('svgG', edgesG, '#7ef3a6', '#7ef3a6');
+      } else {
+        if(edgesH.has(k)) edgesH.delete(k); else edgesH.add(k);
+        draw('svgH', edgesH, '#ffd36b', '#ffd36b');
+      }
+      drawSymmetric();
+    });
+  });
+  // buttons
+  document.getElementById('randG').addEventListener('click', ()=>{ edgesG = new Set(); allEdges.forEach(e=>{ if(Math.random()<0.5) edgesG.add(edgeKey(e)); }); draw('svgG', edgesG, '#7ef3a6', '#7ef3a6'); drawSymmetric(); });
+  document.getElementById('randH').addEventListener('click', ()=>{ edgesH = new Set(); allEdges.forEach(e=>{ if(Math.random()<0.5) edgesH.add(edgeKey(e)); }); draw('svgH', edgesH, '#ffd36b', '#ffd36b'); drawSymmetric(); });
+  document.getElementById('clearG').addEventListener('click', ()=>{ edgesG = new Set(); draw('svgG', edgesG, '#7ef3a6', '#7ef3a6'); drawSymmetric(); });
+  document.getElementById('clearH').addEventListener('click', ()=>{ edgesH = new Set(); draw('svgH', edgesH, '#ffd36b', '#ffd36b'); drawSymmetric(); });
+  document.getElementById('makeEqual').addEventListener('click', ()=>{ edgesH = new Set(edgesG); draw('svgH', edgesH, '#ffd36b', '#ffd36b'); drawSymmetric(); });
+  document.getElementById('randomBoth').addEventListener('click', ()=>{ document.getElementById('randG').click(); document.getElementById('randH').click(); });
+}
+
+init();
+</script>
+</body>
+</html>
